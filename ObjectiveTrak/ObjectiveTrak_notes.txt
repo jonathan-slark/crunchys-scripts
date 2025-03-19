@@ -1,0 +1,375 @@
+-- ObjectiveTrak -- v3.2.1 -- Scripters notes ------------------------------------------------------------------
+Written by |HH|Crunchy (Jonathan Slark)
+Web page: http:www.planetstarsiege.com/crunchy/
+Email: crunchy@planetstarsiege.com
+
+*** Requires the Presto Pack v0.93 or later ***  http:www.planetstarsiege.com/presto/
+*** Supports Poker's BWAdmin mod ***  http:www.pokerspockets.freeserve.co.uk/
+
+Scripting tool that tracks the status of the objectives in missions.  The script can track objectives in
+any of the missions, either base or custom including CTF, C&H, D&D, F&R, Balanced, Open Call and Multiple
+Team.  Take a look at the new events and functions ObjectiveTrak defines listed below.  For an example of
+the use of the script check out my Objective HUD.
+
+The script has the ability to learn about objectives from the messages sent to the client you see in the
+chat box.  The script also loads information about missions from the files created using
+ObjectiveExtract.exe.  There is no other way to find out about the objectives from a script, rather than 20
+scripts all having to do this hard work ObjectiveTrak does it all for you.
+
+The current implemetation assigns each objective an  unique ID.  The ID is an interger which is in the
+range from zero to one less than the number of objectives (see below).
+
+The script patches TeamTrak to bring it up to date.  It lets TeamTrak know about the team names as soon as
+you are connected.  Flag tracking has been extended to work with multiple teams.  The interface for
+TeamTrak has not been changed in any way.
+
+
+-------------
+---Example---
+-------------
+
+	To check the status of all the objectives you could use a simple loop to run through them:
+
+		for(%id = 0; id < Objective::Number(); id++)
+		{
+			%status = Objective::GetStatus(%id);
+			%type = Objective::GetType(%id);
+			if(%type == $Objective::CandH)
+			{
+				if(%status == $Objective::Enemy)
+				{
+					(do something useful regarding enemy having the objective)
+				}
+				else
+				{
+					(etc)
+				}
+			}
+		}
+
+ For a working example take a look at Objective HUD.
+
+
+------------------
+--- New events ---
+------------------
+
+	eventObjectiveReset()
+
+		Triggered when the script is reset.  There are no obectives at this point, we will either load info
+		about them or find out about them during the game.
+
+	eventObjectiveLoaded(%num)
+
+		Called when the objectives are loaded off disk, the number loaded is returned.  If they can't be
+		loaded the objectives will be added when they are taken or lost.  After each mission any new
+		objectives will be saved to the config directory so that the next time you play that level the
+		script will know about the objectives.  If only a partial list was saved out then the script will
+		still learn about new objectives when they are claimed.
+
+		Note: This event is triggered even if no objectives were loaded, %num == 0.
+
+	eventObjectiveMadeNeutral()
+
+		On a mission change or if you join a server just before the match starts the script knows that all
+		the objectives are neutral.  It sets them neutral and then triggers this event.
+
+	eventObjectiveNew(%client, %id, %status, %type)
+
+		Just found about a new objective.  The event returns the client ID of the player that changed the
+		state of the objective, the ID of the objective, the status of the objective and the type of the
+		objective.  The client ID is 0 if it was the server that changed the status of the objective, for
+		instance returning an F&R flag after it was dropped and no one picked it up.
+
+	eventObjectiveUpdated(%client, %id, %status, %type)
+
+		An objective already known about has changed state in some way.  The event returns the client ID of
+		the player that took the objective, the ID of the objective, the new status of the objective and the
+		type of the objective.  The client ID is 0 if it was the server that changed the status of the
+		objective.
+
+
+Events more specific than eventObjectiveUpdated:
+
+	Use the following events instead of eventObjectiveUpdated if they provide what you need.  This ensures
+	your script has to do little as possible.
+
+	eventObjectiveTaken(%client, %id, %team, %type)
+
+		Whenever an objective is taken by your team or if your in observer mode this is triggered.  It returns
+		the client that took the objective and the objective name.  Objectives that can be taken are C&H
+		towers and D&D objectives.  In the case of D&D objectives "take" means your team destroyed the enemy
+		objective.
+
+	eventObjectiveLost(%client, %id, %team, %type)
+
+		Whenever an objective that your team was holding is lost this is triggered.  It returns the client
+		that took the objective, the objective name and the team that took it.  Objectives that can be lost
+		are C&H towers and D&D objectives.  In the case of D&D objectives "lost" means your team failed to
+		defend one of your objectives.
+
+	eventObjectiveFlagTaken(%client, %id, %team, %type)
+
+		This event is triggered when a flag has been taken.  It returns the client that is now carrying the
+		flag, the flag's ID and the team number.  The type can be a CTF flag or F&R flag.  In CTF missions
+		the team is that of the flag, for F&R flags it is the team of the taker.
+
+	eventObjectiveFlagDropped(%client, %id, %team, %type)
+
+		A flag was dropped in the field.  The client that dropped the flag is returned.  Also the flag ID
+		and team are returned.  The type can be a CTF flag or F&R flag.  In CTF missions the team is that of
+		the flag, for F&R flags it is the team of the dropper.
+
+	eventObjectiveFlagReturned(%client, %id, %team, %type)
+
+		A flag was returned to it's initial position.  For F&R flags this only happens when a player left the
+		mission area whilst carrying it or the flag was dropped in the field for a certain length of time.
+		For CTF flags this can be either when a player left the mission area or an enemy returned it or the
+		flag was in the field for a certain length of time.  The type can be a CTF flag or F&R flag.  In CTF
+		missions the team is that of the flag.  For F&R flags it is the team of the player that left the
+		mission area whilst carrying the flag, if that is what happened to the flag.
+
+	eventObjectiveFlagCaptured(%client, %id, %team, %type)
+
+		This teams flag was captured by this client.  Only applies to CTF flags.
+
+	eventObjectiveFlagHolds, %client, %id, %team, %type)
+
+		This team now holds this flag in their base.  The client number of the player that conveyed the flag
+		to their base is also returned.  Only applies to F&R flags.
+
+
+-------------------
+---New functions---
+-------------------
+
+	Objective::GetStatus(%id)
+
+		Returns the status of the objective that is associated with the ID.  Possible values returned
+		is dependant on the objective type.
+
+			CTF:
+				$Objective::Unknown
+					We joined mid-game, we don't know what the status is.
+				$Objective::Enemy
+					The flag is in the enemy base.
+				$Objective::Friendly
+					The flag is in your base.
+				$Objective::FriendlyCarry
+					Either you or a team mate is carrying the flag.
+				$Objective::EnemyCarry
+					An enemy is carrying the flag.
+				$Objective::Dropped
+					The flag has been dropped in the field
+
+			C&H:
+				$Objective::Neutral
+					The match has just started, no one has control of the tower.
+				$Objective::Unknown
+					We joined mid-game, we don't know what the status is.
+				$Objective::Enemy
+					An enemy team has control of the tower.
+				$Objective::Friendly
+					Your team has control of the tower.
+
+			D&D:
+				$Objective::Neutral
+					The match has just started, the objective has not been destroyed.
+				$Objective::Unknown
+					We joined mid-game, we don't know what the status is.
+				$Objective::Destroyed
+					The objective has been destroyed.
+
+			F&R:
+				$Objective::Neutral
+					The match has just started, the flag is at its starting postition.
+				$Objective::Unknown
+					We joined mid-game, we don't know what the status is.
+				$Objective::Enemy
+					The flag is in the enemy base.
+				$Objective::Friendly
+					The flag is in your base.
+				$Objective::FriendlyCarry
+					Either you or a team mate is carrying the flag.
+				$Objective::EnemyCarry
+					An enemy is carrying the flag.
+				$Objective::Dropped
+					The flag has been dropped in the field
+
+	Objective::GetStatusExt(%id)
+
+		Extended version of Objective::GetStatus().  The same as above except for CTF flags:
+
+			CTF:
+				$Objective::FriendlyUnknown
+					We joined mid-game, we don't know what the status is of your flag.
+				$Objective::EnemyUnknown
+					We joined mid-game, we don't know what the status is of the enemy flag.
+				$Objective::FriendlyNeutral
+					The flag is in your base.
+				$Objective::EnemyNeutral
+					The enemy flag is in the enemy base.
+				$Objective::FriendlyCarry
+					Either you or a team mate is carrying the flag.
+				$Objective::EnemyCarry
+					An enemy is carrying the flag.
+				$Objective::FriendlyDropped
+					Your flag has been dropped in the field
+				$Objective::EnemyDropped
+					The enemy flag has been dropped in the field
+
+	Objective::GetRawStatus(%id)
+
+		Similar to above but doesn't interpret the status for you.  This is the internal representation of
+		the state.  Use the above functions in preference.
+
+	Objective::GetName(%id)
+
+		Get the name of the objective associated with the ID.
+
+	Objective::GetNameStripped(%id)
+
+		Get the name of the objective associated with the ID but strip off a "the" if it exists.  For
+		example if the name of the an objective was "the Central Citadel" this function would return
+		"Central Citadel".
+
+	Objective::GetNameAbbreviated(%id)
+
+		Get the name of the objective associated with the ID but abbreviate the name, strips it as above as
+		well.  This makes the objective name a lot shorter in many cases.  For instance "Secondary Generator"
+		is abbreviated to "2nd Gen".  See the file Abbreviations.cs in the MissionInfo Pack for more
+		information.
+
+	Objective::GetFlagName(%team)
+
+		Get the name of this team's flag as an objective.
+
+	Objective::GetFlagID(%team)
+
+		Returns the ID of this team's flag.
+
+	Objective::GetLocationX(%id)
+
+		Get the X co-ordinate of this objective on the PDA map.
+
+	Objective::GetLocationY(%id)
+
+		Get the Y co-ordinate of this objective on the PDA map.
+
+	Objective::Number()
+
+		Get the number of objectives we currently know about, this is the number loaded from disk plus
+		those we have found out about since.
+
+	Objective::GetId(%objectiveName)
+
+		Get the ID of an objective from its name.  Note that this has to be the entire name, "the Central
+		Citadel" in the example above.  Returns -1 if the objective doesn't exist.
+
+	Objective::GetType(%id)
+
+		Returns the type of this objective.  Values can be:
+			$Objective::CandH - Capture and Hold (tower)
+			$Objective::DandD - Defend and Destroy
+			$Objective::FandR - Find and Retrieve (flag)
+			$Objective::CTF - Capture the Flag (flag)
+
+	Objective::GetTypeExt(%id)
+
+		Extended version of Objective::GetType(), types are much more specific:
+			$Objective::Flag			  - a flag
+			$Objective::TowerSwitch		  - a tower switch
+			$Objective::Generator		  - a generator
+			$Objective::PortableGenerator - a portable generator
+			$Objective::PlasmaTurret      - a plasma turret
+			$Objective::SolarPanel        - a solar panel
+			$Objective::CommandStation    - a command station
+			$Objective::RocketTurret      - a rocket turret
+			$Objective::PulseSensor       - a pulse sensor
+			$Objective::MediumPulseSensor - a medium pulse sensor
+
+	Objective::GetTypeNum(%type)
+
+		Get the number of this type of objective.  Can be the generic type or the extended type.
+
+	Objective::ConvertType(%type)
+
+		Convert from the exteneded type to the generic type.
+
+	Objective::GetFandRTimer()
+
+		Get the start value of the F&R countdown timer for this server, return value is in seconds.
+
+	Objective::GetTime(%id)
+
+		Get the time in seconds since the map start (getSimTime()) that the objective last changed state.
+
+	Objective::GetTimeScore(%id, %team)
+
+		Get the score linked to time for this objective.  This is only valid for objectives the team
+		currently holds.
+
+	Objective::GetScore(%id)
+
+		Get the fixed amount score associated with capturing / destroying / holding an objective.
+
+	Objective::GetMissionType()
+
+		Returns the type of the mission as the script sees it.  This means that Balanced, Open Call and
+		Multiple Team have been translated into a base mission type, ie CTF, C&H, D&D or F&R.
+
+	Objective::IsBWAdmin()
+
+		Returns true if we are connected to a server running the BWAdmin mod.
+		Returns false if the mod was not found or we are playing a demo.
+
+	Objective::IsMatchStarted()
+
+		Returns true if the match has started, false otherwise.
+
+	Objective::GetTeamNum()
+
+		Returns the number of teams.
+
+	Objective::GetTeamNameAbbreviated(%team, %level)
+		Returns the abbreviated version of this teams name.
+		%level is the severness, 0 being no abbreviation, 1 being least severe and 3 being the most severe.
+
+	Objective::GetTeamScore(%team)
+
+		Get the score of this team as a float.
+
+	Objective::GetWinScore()
+
+		Get the score needed for a team to win this mission.
+
+	Objective::GetDeltaScore(%id)
+
+		Get the score per minute associated with this objective, only used in C&H missions.
+
+	Objective::GetClient(%id)
+
+		Get the client involved with the last change of state.  In the case of someone carrying the flag this
+		would that players client number.  Otherwise it's whoever claimed, captured etc the objective.  If
+		there was no played involved in the change then the value is 0.  ie It was the server that made the
+		change.  This could happen in the case of returning a flag after a timeout for instance.
+
+	Objective::InsertTeamName(%msg)
+
+		In certain objective names we have to remember the team number involved, it is stored as a wild card.
+		For instance in a D&D type game: "%0 Main Generator".  This function searches for any wildcards and
+		inserts either "your" or "enemy" into it's place.  It even checks to see if word is at the start of
+		the sentance and so will capitalise the message.  In the example above: "Your Main Generator", if you
+		are on team 0.  This could've put the actual team name into the message but this makes the names very
+		long and for a user it is easier to work out who's objective it is.
+
+	Objective::InsertTeamSymbol(%msg)
+
+		Same as Objective::InsertTeamName() but inserts a red or a green player symbol into the text instead.
+		A red player indicates an enemy objective, green means friendly objective.
+
+	Objective::PrintAll()
+
+		Useful for debuging, this function prints to the console the entire list of objectives currently
+		known about, with all their information.
+

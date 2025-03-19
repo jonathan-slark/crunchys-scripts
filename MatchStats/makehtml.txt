@@ -1,0 +1,82 @@
+place the makehtml.exe file in your c:\Dynamix\Tribes directory
+
+to run the conversion just double click the makehtml.exe icon in your tribes directory.
+
+This is a support program for HH Crunchy's MatchStats.cs script.
+It checks to see if you have a KillsLog.cs file in your C:\Dynamix\Tribes\Temp directory
+if it does not find one, it will not continue.
+
+The makehtml.exe program does the following:
+1. reads the current KillsLog.cs file and extracts the data from it.
+2. creates a file called latest_match.html that contains the match detail information
+3. updates or creates a data file called teams.file, (this file is a totalizer file for each team in the league)
+4. creates a file called Tribe_Totals.html that contains season totals for each team (teams are sorted in alpha order)
+5. updates or creates a data file called player.file, (this file is a totalizer file for each player in the league)
+6. creates a file called player_totals.html that contains season totals for each player.
+
+IMPORTANT!!
+each time you run makehtml.exe the teams.file is updated by adding the current KillsLog.cs data to the existing numbers
+so if you run makehtml.exe 5 times with the same KillsLog.cs file you will get the Original KillsLog.cs data X 5.
+
+Just run makehtml.exe ONCE on each KillsLog.cs
+
+latest_match.html and Tribe_Totals.html are REPLACED each time makehtml.exe is run
+teams.file is updated.
+ 
+DETAILS for latest_match.html :
+
+Players are sorted in Alpha Order 
+(so if team prefixes are in front of each players name the table will have one team on top the other on bottom)
+
+Totals for each player of Kills, Deaths, Flag Caps, Flag Returns are in the players row.
+
+The program also extracts a list of Players who Killed each player including suicides 
+and lists them for each player along with the number of times the killer did so.
+
+The same is done for Deaths.
+
+Note: the file, latest_match.html is created in your Tribes directory.
+It is recommended that this file be renamed and moved to keep track of matches.
+
+The table does not have any match information included Only the team names
+but any text editor will allow you to edit the .html file and add comments, Team scores , Mod, Map etc etc.
+This is meant to save you lots of time by not having to extract the data from Crunchy's log file.
+
+DETAILS FOR Tribe_Totals.html
+Team information is stored in a data file called teams.file in the same dir as makehtml.exe
+Stats kept are :
+1. matches played
+2. total kills for the team
+3. total deaths for the team
+4. total flag grabs
+5. total flag caps
+6. total flag returns
+7. total carrier kills
+
+TO RESET the TEAM TOTALS DELETE or remove from dir the teams.file
+
+DETAILS for player_total.html
+Player information is stored in a data file called player.file in the same dir as makehtml.exe
+Stats kept are :
+1. players team as of last match
+2. total kills
+3. weapons used to kill and number of kills per weapon
+4. total deaths
+5. weapons the player died from and how many times
+6. total flag grabs
+7. total flag caps
+8. total flag returns
+9. total carrier kills
+10. matches played
+
+
+TO RESET the PLAYER TOTALS DELETE or remove from dir the player.file
+
+Let me know if you like this program or it helps you out..
+.001 seconds is pretty fast for table formating of a match :)
+
+This program was tested on Win NT SR(4) and Win98
+The original source was coded in PERL
+
+Greg "Rincon" Moreland
+rincon@wcc.net
